@@ -2,31 +2,33 @@ require 'sinatra'
 require 'sinatra/json'
 require 'sinatra/reloader' if development?
 require 'securerandom'
+require 'sqlite3'
 
-require_relative 'link'
+db = SQLite3::Database.new 'database.db'
 
-rom = ROM.container(:sql, 'sqlite://db/database.sqlite3') do |conf|
-  conf.register_relation(Links)
-end
-
-links_repo = LinksRepo.new(rom)
+db.execute <<-SQL
+CREATE TABLE IF NOT EXISTS links (
+  id TEXT PRIMARY KEY NOT NULL,
+  target TEXT NOT NULL UNIQUE
+);
+SQL
 
 get '/' do
   erb :index
 end
 
 post '/create' do
-  # Check if a link already exists for the target.
   target = JSON.parse(request.body.read)['target']
   halt 400 if target.empty?
 
-  link = links_repo.find_by_target(target)
-  json slug: link.slug unless link.nil?
-  
+  # Check if a link already exists for the target.
+  slug = db.get_first_value('SELECT id FROM links WHERE target = ?', target)
+  return json slug: slug unless slug.nil?
+
   # The target has never been seen before. Create a new link.
   slug = SecureRandom.alphanumeric(8)
 
-  link = links_repo.create(slug: slug, target: target)
+  link = db.execute('INSERT INTO links VALUES (?, ?)', slug, target)
   halt 500 if link.nil?
 
   json slug: slug
@@ -34,9 +36,9 @@ end
 
 get '/*' do
   slug = params['splat'][0]
-  link = links_repo.find_by_slug(slug)
+  target = db.get_first_value('SELECT target FROM links WHERE id = ?', slug)
 
-  halt 404, erb(:not_found) if link.nil?
+  halt 404, erb(:not_found) if target.nil?
 
-  redirect link.target, 308
+  redirect target, 308
 end
