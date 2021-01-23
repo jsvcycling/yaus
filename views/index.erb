@@ -33,7 +33,7 @@
 
             return res.json();
           }).then(data => {
-            const result = "https://yaus.cc/" + data.slug;
+            const result = window.location.origin + '/' + data.slug;
             document.getElementById('output').innerHTML = `Result: <a href="${result}">${result}</a>`;
           }).catch(err => {
             document.getElementById('output').innerHTML = err.message;
