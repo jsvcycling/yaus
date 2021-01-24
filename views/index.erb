@@ -6,7 +6,7 @@
   </head>
   <body>
     <h1>YAUS: Yet Another URL Shortener</h1>
-    <form>
+    <form autocomplete="off">
       <label for="target">Target URL:</label>
       <input id="target" type="text" name="target" placeholder="https://google.com" required>
       <button id="submit" type="submit">Shorten</button>
@@ -26,22 +26,19 @@
               'Content-Type': 'application/json;charset=utf-8'
             },
             body: JSON.stringify({ target })
-          }).then(res => {
-            if (!res.ok) {
-              if (res.status === 400) {
-                throw new Error('Invalid target.');
-              } else {
-                throw new Error('Request failed. Please try again later.');
-              }
-            }
+          })
+            .then(res => res.json())
+            .then(data => {
+              const target = document.getElementById('output');
 
-            return res.json();
-          }).then(data => {
-            const result = window.location.origin + '/' + data.slug;
-            document.getElementById('output').innerHTML = `Result: <a href="${result}" target="_blank">${result}</a>`;
-          }).catch(err => {
-            document.getElementById('output').innerHTML = err.message;
-          });
+              if ('message' in data) {
+                target.innerHTML = data.message;
+                return;
+              }
+
+              const result = window.location.origin + '/' + data.slug;
+              document.getElementById('output').innerHTML = `Result: <a href="${result}" target="_blank">${result}</a>`;
+            });
         });
       })();
     </script>

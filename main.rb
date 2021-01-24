@@ -3,6 +3,9 @@ require 'sinatra/json'
 require 'sinatra/reloader' if development?
 require 'securerandom'
 require 'sqlite3'
+require 'uri'
+
+SUPPORTED_SCHEMES = ['http', 'https']
 
 db = SQLite3::Database.new 'database.db'
 
@@ -18,8 +21,13 @@ get '/' do
 end
 
 post '/create' do
+  # Make sure the target is valid.
   target = JSON.parse(request.body.read)['target']
-  halt 400 if target.empty?
+  uri = URI.parse(target)
+
+  unless SUPPORTED_SCHEMES.include? uri.scheme
+    halt 400, json(message: 'Invalid target, missing scheme (i.e. http://foo.com).')
+  end
 
   # Check if a link already exists for the target.
   slug = db.get_first_value('SELECT id FROM links WHERE target = ?', target)
@@ -29,7 +37,7 @@ post '/create' do
   slug = SecureRandom.alphanumeric(8)
 
   link = db.execute('INSERT INTO links VALUES (?, ?)', slug, target)
-  halt 500 if link.nil?
+  halt 500, json(message: 'Unknown error. Please try again later.') if link.nil?
 
   json slug: slug
 end
